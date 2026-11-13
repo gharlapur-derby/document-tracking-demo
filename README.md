@@ -46,4 +46,4 @@ python3 -m http.server 8000
 | `styles.css` | Layout, light and dark themes |
 | `data.js` | Fictional sample data generator |
 | `app.js` | Views, filters, roles, alerts and audit log |
-| `assets/`, `favicon.ico` | Company logo and browser icon |
+| `assets/logo.webp`, `favicon.ico` | Derby Group logo and browser icon |
