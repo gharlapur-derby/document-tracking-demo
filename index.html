@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Document Control Centre – Demo</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div><strong>Document Control</strong><span>Centre</span></div>
+    </div>
+    <nav id="nav" aria-label="Main">
+      <a href="#/dashboard" data-view="dashboard">Dashboard</a>
+      <a href="#/staff" data-view="staff">Employee files</a>
+      <a href="#/contracts" data-view="contracts">Contracts</a>
+      <a href="#/alerts" data-view="alerts">Alerts</a>
+      <a href="#/audit" data-view="audit">Audit log</a>
+    </nav>
+    <p class="side-note">Demo with sample data. No real employee or contract records are stored.</p>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <h1 id="title">Dashboard</h1>
+      <div class="top-right">
+        <span class="demo-badge">Demo · sample data</span>
+        <label class="role">Viewing as
+          <select id="role" aria-label="Role"></select>
+        </label>
+        <button id="theme" class="btn ghost" type="button" aria-label="Switch light or dark theme">Theme</button>
+      </div>
+    </header>
+    <main id="view" tabindex="-1"></main>
+  </div>
+</div>
+
+<div id="drawer" class="drawer" hidden></div>
+<div id="modal" class="modal" hidden></div>
+<div id="tip" class="tip" hidden></div>
+<div id="toast" class="toast" hidden role="status"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
