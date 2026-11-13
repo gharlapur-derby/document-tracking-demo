@@ -14,8 +14,11 @@ role-based access and an audit log.
 2. **Employee files** – search by name or employee number, filter by site, document
    type and status. Select a row to open the employee file, then *Upload renewal* to
    see the status change.
+   *Add employee* creates a new employee file directly in this system, with every
+   required document marked *Missing* until it is uploaded. No separate HR system
+   is needed.
 3. **Contracts** – switch *Viewing as* to *Contracts team*. Search, filter and open
-   an agreement.
+   an agreement. *Add agreement* records a new one.
 4. **Viewing as** – switch roles to show access control. A site manager sees status
    only, for their own site; the contracts team cannot open employee files.
 5. **Alerts** – the 90, 60 and 30 day reminders due today, plus escalations.

@@ -204,6 +204,7 @@
       <select data-filter="staff.status" aria-label="Status">${statusOptions(f.status, ['expired', 'd30', 'd90', 'valid', 'missing'])}</select>
       ${f.month ? `<span class="chip">Expires in ${monthLabel}<button data-act="clearmonth" aria-label="Remove month filter">×</button></span>` : ''}
       <button class="btn" data-act="export-staff">Export CSV</button>
+      ${full ? '<button class="btn primary" data-act="add-emp">Add employee</button>' : ''}
     </div>
     <p class="count">${fmt(rows.length)} documents · most urgent first</p>
     <div class="table-wrap"><table><thead><tr><th>Employee no.</th><th>Name</th><th>Site</th><th>Document</th><th>Document no.</th><th>Expiry date</th><th class="num">Days left</th><th>Status</th></tr></thead>
@@ -231,6 +232,7 @@
       <select data-filter="con.type" aria-label="Type">${options(DB.conTypes, f.type, 'All types')}</select>
       <select data-filter="con.status" aria-label="Status">${statusOptions(f.status, ['expired', 'd30', 'd90', 'valid'])}</select>
       <button class="btn" data-act="export-con">Export CSV</button>
+      ${r.contracts === 'full' ? '<button class="btn primary" data-act="add-con">Add agreement</button>' : ''}
     </div>
     <p class="count">${fmt(rows.length)} agreements · soonest renewal first</p>
     <div class="table-wrap"><table><thead><tr><th>Reference</th><th>Counterparty</th><th>Type</th><th>Owner</th><th class="num">Value</th><th>Renewal date</th><th class="num">Days left</th><th>Status</th></tr></thead>
@@ -330,9 +332,10 @@
     const base = Math.max(DB.today, item.exp || DB.today);
     const def = new Date(base + validity * DAY).toISOString().slice(0, 10);
     const title = kind === 'doc' ? DB.docTypes[item.type].name + ' · ' + DB.employees[item.emp].name : item.ref + ' · ' + item.party;
-    $('#modal').innerHTML = `<form class="modal-box" id="renewForm" data-kind="${kind}" data-id="${id}"><h2>${kind === 'doc' ? 'Upload renewed document' : 'Record renewal'}</h2><p class="count">${esc(title)}</p>
+    $('#modal').innerHTML = `<form class="modal-box" id="renewForm" data-kind="${kind}" data-id="${id}"><h2>${kind === 'doc' ? (item.exp == null ? 'Upload document' : 'Upload renewed document') : 'Record renewal'}</h2><p class="count">${esc(title)}</p>
       <label>Scanned copy<input type="file" accept="image/*,application/pdf"></label>
-      <label>New expiry date<input type="date" name="exp" value="${def}" required></label>
+      ${kind === 'doc' ? `<label>Document number<input type="text" name="no" value="${esc(item.no || '')}" required></label>` : ''}
+      <label>${kind === 'doc' && item.exp == null ? 'Expiry date' : 'New expiry date'}<input type="date" name="exp" value="${def}" required></label>
       <p class="count">Demo only: the file you choose is not uploaded or stored anywhere.</p>
       <div class="modal-actions"><button type="button" class="btn" data-act="closemodal">Cancel</button><button class="btn primary" type="submit">Save</button></div></form>`;
     $('#modal').hidden = false;
@@ -343,9 +346,10 @@
     const exp = new Date(val + 'T00:00:00').getTime();
     if (kind === 'doc') {
       const d = DB.docs.find((x) => x.id === id); const e = DB.employees[d.emp];
-      d.exp = exp; if (d.no == null) d.no = 'MI-' + String(100000000 + d.id);
+      const first = d.exp == null;
+      d.exp = exp; d.no = form.elements.no.value.trim();
       stamp(d); DB.docs.sort(urgency);
-      log('Uploaded renewal', DB.docTypes[d.type].name + ' · ' + e.name + ' (' + e.id + ')');
+      log(first ? 'Uploaded document' : 'Uploaded renewal', DB.docTypes[d.type].name + ' · ' + e.name + ' (' + e.id + ')');
     } else {
       const c = DB.contracts.find((x) => x.id === id);
       c.start = DB.today; c.exp = exp; stamp(c); DB.contracts.sort(urgency);
@@ -353,6 +357,62 @@
     }
     closeModal(); refreshDrawer(); render();
     toast('Saved. Status updated and the change added to the audit log.');
+  }
+
+  const isoToday = () => new Date(DB.today - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const siteSelect = (sel) => `<select name="site" required>${DB.sites.map((x, i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
+  function addEmployeeModal() {
+    const nextId = 'E' + String(DB.employees.length + 1).padStart(5, '0');
+    $('#modal').innerHTML = `<form class="modal-box" id="empForm"><h2>Add employee</h2>
+      <p class="count">Employee number <b class="mono">${nextId}</b> is assigned automatically.</p>
+      <label>Full name<input type="text" name="name" required maxlength="80" autocomplete="off"></label>
+      <div class="two"><label>Nationality<input type="text" name="nat" required maxlength="40"></label>
+      <label>Job title<input type="text" name="job" required maxlength="40"></label></div>
+      <div class="two"><label>Site${siteSelect(role().site == null ? 0 : role().site)}</label>
+      <label>Joining date<input type="date" name="joined" value="${isoToday()}" required></label></div>
+      <p class="count">The employee file is created with every required document marked “Missing”, ready for you to upload.</p>
+      <div class="modal-actions"><button type="button" class="btn" data-act="closemodal">Cancel</button><button class="btn primary" type="submit">Create employee file</button></div></form>`;
+    $('#modal').hidden = false; $('#modal input[name="name"]').focus();
+  }
+  function saveEmployee(form) {
+    const v = form.elements; const name = v.name.value.trim(); if (!name) return;
+    const idx = DB.employees.length; const id = 'E' + String(idx + 1).padStart(5, '0');
+    DB.employees.push({ idx, id, name, nat: v.nat.value.trim(), site: +v.site.value, job: v.job.value.trim(),
+      joined: new Date(v.joined.value + 'T00:00:00').getTime(), key: (id + ' ' + name).toLowerCase() });
+    const base = DB.docs.length;
+    DB.docTypes.forEach((t, i) => { const d = { id: base + i, emp: idx, type: i, no: null, exp: null }; stamp(d); DB.docs.push(d); });
+    DB.docs.sort(urgency);
+    log('Created employee file', name + ' (' + id + ')');
+    closeModal(); Object.assign(S.staff, { q: id, site: '', type: '', status: '', month: '', page: 1 });
+    if (S.view !== 'staff') go('staff'); else render();
+    openEmployee(idx);
+    toast('Employee file created. Upload the documents to complete it.');
+  }
+  function addContractModal() {
+    const opts = (list) => list.map((x, i) => `<option value="${i}">${esc(x)}</option>`).join('');
+    $('#modal').innerHTML = `<form class="modal-box" id="conForm"><h2>Add agreement</h2>
+      <label>Counterparty<input type="text" name="party" required maxlength="80" autocomplete="off"></label>
+      <div class="two"><label>Type<select name="type">${opts(DB.conTypes)}</select></label>
+      <label>Owner<select name="owner">${DB.owners.map((x) => `<option>${esc(x)}</option>`).join('')}</select></label></div>
+      <div class="two"><label>Site${siteSelect(0)}</label>
+      <label>Value (AED)<input type="number" name="value" min="0" step="1000" value="100000" required></label></div>
+      <div class="two"><label>Start date<input type="date" name="start" value="${isoToday()}" required></label>
+      <label>Renewal date<input type="date" name="exp" value="${new Date(DB.today + 366 * DAY).toISOString().slice(0, 10)}" required></label></div>
+      <div class="two"><label>Notice period<select name="notice"><option>30</option><option>60</option><option>90</option></select></label>
+      <label>Signed copy<input type="file" accept="image/*,application/pdf"></label></div>
+      <div class="modal-actions"><button type="button" class="btn" data-act="closemodal">Cancel</button><button class="btn primary" type="submit">Save agreement</button></div></form>`;
+    $('#modal').hidden = false; $('#modal input[name="party"]').focus();
+  }
+  function saveContract(form) {
+    const v = form.elements; const party = v.party.value.trim(); if (!party) return;
+    const id = DB.contracts.length; const ref = 'CT-' + new Date(DB.today).getFullYear() + '-' + String(id + 1).padStart(4, '0');
+    const c = { id, ref, party, type: +v.type.value, owner: v.owner.value, site: +v.site.value, value: +v.value.value || 0,
+      start: new Date(v.start.value + 'T00:00:00').getTime(), exp: new Date(v.exp.value + 'T00:00:00').getTime(),
+      notice: +v.notice.value, autoRenew: false, key: (ref + ' ' + party).toLowerCase() };
+    stamp(c); DB.contracts.push(c); DB.contracts.sort(urgency);
+    log('Added agreement', ref + ' · ' + party);
+    closeModal(); Object.assign(S.con, { q: ref, type: '', status: '', page: 1 }); render();
+    toast('Agreement ' + ref + ' added.');
   }
 
   /* ---------- Render and routing ---------- */
@@ -394,6 +454,8 @@
     else if (a === 'preview') previewDoc(+el.dataset.id);
     else if (a === 'cpreview') toast('In the live system the signed PDF opens here.');
     else if (a === 'renew') renewModal(el.dataset.kind, +el.dataset.id);
+    else if (a === 'add-emp') addEmployeeModal();
+    else if (a === 'add-con') addContractModal();
     else if (a === 'send') { log('Sent reminders', fmt(+el.dataset.n) + ' reminders for today’s run'); toast(fmt(+el.dataset.n) + ' reminders queued. Demo only: no emails are sent.'); }
     else if (a === 'export-staff') {
       const rows = filteredDocs().slice(0, 5000); const full = role().staff === 'full';
@@ -419,7 +481,10 @@
     const f = ev.target.dataset.filter; if (!f) return;
     const [group, key] = f.split('.'); S[group][key] = ev.target.value; S[group].page = 1; render();
   });
-  document.addEventListener('submit', (ev) => { if (ev.target.id === 'renewForm') { ev.preventDefault(); saveRenewal(ev.target); } });
+  document.addEventListener('submit', (ev) => {
+    const save = { renewForm: saveRenewal, empForm: saveEmployee, conForm: saveContract }[ev.target.id];
+    if (save) { ev.preventDefault(); save(ev.target); }
+  });
 
   /* tooltips for chart marks */
   const tip = $('#tip');
