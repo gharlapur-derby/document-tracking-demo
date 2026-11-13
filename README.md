@@ -1,4 +1,4 @@
-# Document Control Centre – demo
+# Derby Group – Document Control Centre (demo)
 
 A clickable demo of a single platform that tracks staff documents (passports, visas,
 Emirates IDs, labour cards, medical insurance) and contracts, with expiry alerts,
@@ -46,3 +46,4 @@ python3 -m http.server 8000
 | `styles.css` | Layout, light and dark themes |
 | `data.js` | Fictional sample data generator |
 | `app.js` | Views, filters, roles, alerts and audit log |
+| `assets/`, `favicon.ico` | Company logo and browser icon |
